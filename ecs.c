@@ -1,34 +1,37 @@
 #include<stdio.h>
 #include<raylib.h>
+#include<stdint.h>
 
 #define MAX_ENTITIES 64
 #define GAME_W  800
 #define GAME_H  600
 typedef int Entity;
 
+typedef  enum { 
+	C_ALIVE    = 1u << 0, // 0000 0001
+	C_POSITION = 1u << 1, // 0000 0010
+	C_VELOCITY = 1u << 2, // 0000 0100	
+} flags;
+
 typedef struct {
 	float x, y;
-	int h,w;
-	bool active;
+	int h,w;	
 } Position;
 
 typedef struct {
 	float vx,vy;
-	bool active;
 } Velocity;
 
 typedef struct {
-	bool alive[MAX_ENTITIES]; 
+	uint8_t   flag[MAX_ENTITIES]; 
 	Position  pos[MAX_ENTITIES];
 	Velocity  vel[MAX_ENTITIES];
 } World;
 
 Entity CreateEntity(World *w) {
 	for(int i = 0; i < MAX_ENTITIES; i++) {
-		if(!w->alive[i]) {
-			w->alive[i] = 1;
-			w->pos[i].active = 0;
-			w->vel[i].active = 0;
+		if(!(w->flag[i] & C_ALIVE)) {
+			w->flag[i] = w->flag[i] | C_ALIVE;	
 			return i;
 		}	
 	}	
@@ -40,18 +43,18 @@ void AddPosition(World *w, Entity e, float x, float y, int he, int we) {
 	w->pos[e].w = we;
 	w->pos[e].x = x;
 	w->pos[e].y = y;
-	w->pos[e].active = 1;	
+	w->flag[e] |= C_POSITION;	
 }
 
 void AddVelocity(World *w, Entity e, float vx, float vy) {
 	w->vel[e].vx = vx;
 	w->vel[e].vy = vy;	
-	w->vel[e].active = 1;
+	w->flag[e] |= C_VELOCITY ;
 }
 
 void SystemRender(World *w) {
 	for(int i = 0; i < MAX_ENTITIES; i++) {
-		if(!w->alive[i] || !w->pos[i].active) continue;	
+		if(!(w->flag[i] & C_ALIVE) || !(w->flag[i] & C_POSITION)) continue;	
 
 		DrawRectangle((int)w->pos[i].x,(int)w->pos[i].y,w->pos[i].h,w->pos[i].w,BLUE);
 	}
@@ -70,7 +73,7 @@ bool WindowCollision(World *w, int i, int direction) {
 
 void SystemMovement(World *w) {
 	for(int i = 0; i < MAX_ENTITIES; i++) {
-		if(!w->alive[i] || !w->vel[i].active) continue;
+		if(!(w->flag[i] & C_ALIVE) || !(w->flag[i] & C_VELOCITY)) continue;
 		
 		if(IsKeyDown(KEY_RIGHT) && WindowCollision(w,i,0))  w->pos[i].x += w->vel[i].vx;			
 		if(IsKeyDown(KEY_LEFT)  && WindowCollision(w,i,1))  w->pos[i].x -= w->vel[i].vx;
