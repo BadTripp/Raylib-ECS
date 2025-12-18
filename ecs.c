@@ -13,6 +13,18 @@ typedef  enum {
 	C_VELOCITY = 1u << 2, // 0000 0100	
 } flags;
 
+typedef enum {
+	T_PLAYER = 0,
+	T_NPC    = 1,
+	T_PROJECTILE = 2,	
+} type;
+
+typedef enum {	
+	S_RECTANGLE = 0,
+	S_CIRCLE = 1,
+	S_TRIANGLE = 2,
+} shape;
+
 typedef struct {
 	float x, y;
 	int h,w;	
@@ -24,6 +36,7 @@ typedef struct {
 
 typedef struct {
 	uint8_t   flag[MAX_ENTITIES]; 
+	uint8_t   type_shape[MAX_ENTITIES];
 	Position  pos[MAX_ENTITIES];
 	Velocity  vel[MAX_ENTITIES];
 } World;
@@ -52,6 +65,14 @@ void AddVelocity(World *w, Entity e, float vx, float vy) {
 	w->flag[e] |= C_VELOCITY ;
 }
 
+void AddTypeShape(World *w,Entity e, type t, shape s) {
+	w->type_shape[e] = ((t & 15u)<<4 | s & 15u );	
+}
+uint8_t getType(uint8_t x){ return ((x >> 4) & 15u);
+}
+uint8_t getShape(uint8_t x){ return (x & 15u);
+}
+
 void SystemRender(World *w) {
 	for(int i = 0; i < MAX_ENTITIES; i++) {
 		if(!(w->flag[i] & C_ALIVE) || !(w->flag[i] & C_POSITION)) continue;	
@@ -73,7 +94,7 @@ bool WindowCollision(World *w, int i, int direction) {
 
 void SystemMovement(World *w) {
 	for(int i = 0; i < MAX_ENTITIES; i++) {
-		if(!(w->flag[i] & C_ALIVE) || !(w->flag[i] & C_VELOCITY)) continue;
+		if(!(w->flag[i] & C_ALIVE) || !(w->flag[i] & C_VELOCITY) || !(getType(w->type_shape[i]) ==  T_PLAYER )) continue;
 		
 		if(IsKeyDown(KEY_RIGHT) && WindowCollision(w,i,0))  w->pos[i].x += w->vel[i].vx;			
 		if(IsKeyDown(KEY_LEFT)  && WindowCollision(w,i,1))  w->pos[i].x -= w->vel[i].vx;
@@ -89,17 +110,26 @@ int main (void) {
 	SetTargetFPS(60);
 
 	World world = {0};
+
 	Entity player = CreateEntity(&world);
 	AddPosition(&world,player,40,GAME_H - 52,20,20);	
 	AddVelocity(&world,player,4.5,4.5);
-	
+	AddTypeShape(&world,player,0,0);	
+
+	Entity enemy = CreateEntity(&world);
+	AddPosition(&world,enemy,40,50,100,100);
+	AddTypeShape(&world,enemy,1,0);
+
 	while(!WindowShouldClose()) {
-		ClearBackground(RAYWHITE);
+	
 		
 		BeginDrawing();	
+		ClearBackground(RAYWHITE);
+
 		SystemRender(&world);
 		SystemMovement(&world);
 		EndDrawing();
+
 	}	
 	CloseWindow();
 	return 1;
